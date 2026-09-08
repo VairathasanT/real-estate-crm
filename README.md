@@ -264,8 +264,55 @@ Once logged in as Admin, try this to confirm everything works:
 4. Go back to **Properties** → the unit you booked should now show as "Booked", not "Available".
 5. Go to **Bookings** → click **Cancel** on that booking → the unit should become "Available" again.
 
-
 ---
+
+## Screenshots
+
+The following screenshots demonstrate the main workflows and role-based views of EstateFlow CRM.
+
+### Login
+
+![EstateFlow CRM Login](docs/screenshots/01-Login.png)
+
+### Sales Dashboard
+
+![EstateFlow CRM Dashboard](docs/screenshots/02-Dashboard-1.png)
+
+![EstateFlow CRM Dashboard Pipeline](docs/screenshots/03-Dashboard-2.png)
+
+### Lead Management
+
+![EstateFlow CRM Leads](docs/screenshots/04-Leads.png)
+
+### Property Management
+
+![EstateFlow CRM Properties](docs/screenshots/05-Properties-1.png)
+
+![EstateFlow CRM Property Details](docs/screenshots/06-Properties-2.png)
+
+![EstateFlow CRM Units](docs/screenshots/07-Properties-3.png)
+
+### Booking Management
+
+![EstateFlow CRM Bookings](docs/screenshots/08-Bookings.png)
+
+### Admin Dashboard
+
+![EstateFlow CRM Admin Dashboard](docs/screenshots/Admin-Dashboard.png)
+
+### Admin Property Management
+
+![EstateFlow CRM Admin Properties](docs/screenshots/Admin-Properties.png)
+
+### Admin Booking Management
+
+![EstateFlow CRM Admin Bookings](docs/screenshots/Admin-Bookings.png)
+
+### Employee Management
+
+![EstateFlow CRM Employees](docs/screenshots/Employees-1.png)
+
+![EstateFlow CRM Employee Details](docs/screenshots/Employees-2.png)
 
 ## 📄 License
 
