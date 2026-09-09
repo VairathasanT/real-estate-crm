@@ -5,11 +5,9 @@ const {
   getProjects,
   getProjectById,
   updateProject,
-
   createBuilding,
   getBuildings,
   getBuildingById,
-
   createUnit,
   getUnits,
   getUnitById,
@@ -22,18 +20,16 @@ const router = express.Router();
 
 router.use(authenticate);
 
+// ===============================
+// PROJECTS
+// ===============================
+
 router.get("/projects", getProjects);
 
-// Projects
 router.post(
   "/projects",
   authorize("ADMIN"),
   createProject
-);
-
-router.get(
-  "/projects",
-  getProjects
 );
 
 router.get(
@@ -47,7 +43,10 @@ router.put(
   updateProject
 );
 
-// Buildings
+// ===============================
+// BUILDINGS
+// ===============================
+
 router.post(
   "/buildings",
   authorize("ADMIN"),
@@ -64,7 +63,10 @@ router.get(
   getBuildingById
 );
 
-// Units
+// ===============================
+// UNITS
+// ===============================
+
 router.post(
   "/units",
   authorize("ADMIN"),
