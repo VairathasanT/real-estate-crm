@@ -154,30 +154,39 @@ export default function Bookings() {
   // =========================================================
 
   const openModal = async () => {
-    if (saving || openingModal) return;
+  if (saving || openingModal) return;
 
-    try {
-      setOpeningModal(true);
-      setError("");
-      setSuccess("");
+  setError("");
+  setSuccess("");
 
-      // Refresh leads and units immediately before opening the form.
-      // This prevents stale availability data when another user books
-      // or cancels a unit in another browser/session.
-      await Promise.all([loadLeads(), loadUnits()]);
+  setBookingForm({
+    ...initialBookingForm,
+  });
 
-      setBookingForm({
-        ...initialBookingForm,
-      });
+  // Open the modal immediately.
+  // Data will refresh inside it.
+  setShowModal(true);
 
-      setShowModal(true);
-    } catch (err) {
-      console.error("OPEN BOOKING MODAL ERROR:", err);
-      setError(getApiErrorMessage(err, "Unable to load current booking data."));
-    } finally {
-      setOpeningModal(false);
-    }
-  };
+  try {
+    setOpeningModal(true);
+
+    await Promise.all([
+      loadLeads(),
+      loadUnits(),
+    ]);
+  } catch (err) {
+    console.error("OPEN BOOKING MODAL ERROR:", err);
+
+    setError(
+      getApiErrorMessage(
+        err,
+        "Unable to load current booking data."
+      )
+    );
+  } finally {
+    setOpeningModal(false);
+  }
+};
 
   // =========================================================
   // CLOSE MODAL
@@ -375,17 +384,16 @@ export default function Bookings() {
           </button>
 
           <button
-            type="button"
-            className="btn btn-primary"
-            onClick={openModal}
-            disabled={
-              loading 
-            }
+          type="button"
+          className="btn btn-primary"
+          onClick={openModal}
+          disabled={loading || saving || openingModal}
           >
             <Plus size={17} />
-
-            Create Booking
-          </button>
+            {openingModal
+            ? "Loading..."
+            : "Create Booking"}
+            </button>
 
         </div>
       </div>
@@ -868,10 +876,7 @@ export default function Bookings() {
                 <button
                   type="submit"
                   className="primary-button"
-                  disabled={
-                    saving ||
-                    availableUnits.length === 0
-                  }
+                  disabled={saving}
                 >
                   {saving
                     ? "Creating..."
