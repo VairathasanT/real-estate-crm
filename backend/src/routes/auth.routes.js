@@ -3,6 +3,9 @@ const express = require("express");
 const {
   login,
   getEmployees,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
 } = require("../controllers/auth.controller");
 
 const {
@@ -12,15 +15,43 @@ const {
 
 const router = express.Router();
 
-// Login
+// =========================================================
+// LOGIN
+// =========================================================
+
 router.post("/login", login);
 
-// Employees - Admin only
+// =========================================================
+// EMPLOYEE MANAGEMENT
+// ADMIN ONLY
+// =========================================================
+
 router.get(
   "/employees",
   authenticate,
   authorize("ADMIN"),
   getEmployees
+);
+
+router.post(
+  "/employees",
+  authenticate,
+  authorize("ADMIN"),
+  createEmployee
+);
+
+router.put(
+  "/employees/:id",
+  authenticate,
+  authorize("ADMIN"),
+  updateEmployee
+);
+
+router.delete(
+  "/employees/:id",
+  authenticate,
+  authorize("ADMIN"),
+  deleteEmployee
 );
 
 module.exports = router;

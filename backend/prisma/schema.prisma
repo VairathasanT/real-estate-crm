@@ -123,5 +123,4 @@ model Booking {
 
   createdAt DateTime @default(now())
 
-  @@unique([unitId, status])
 }

@@ -1,13 +1,56 @@
-import { createContext, useContext, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+} from "react";
+
 import api from "../services/api";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const savedUser = localStorage.getItem("user");
+    try {
+      const savedUser = localStorage.getItem("user");
 
-    return savedUser ? JSON.parse(savedUser) : null;
+      if (!savedUser) {
+        return null;
+      }
+
+      const parsedUser = JSON.parse(savedUser);
+
+      // Support both:
+      // { id, name, email, role }
+      // and { user: { id, name, email, role } }
+      const normalizedUser =
+        parsedUser?.user || parsedUser;
+
+      if (
+        !normalizedUser ||
+        !normalizedUser.id ||
+        !normalizedUser.role
+      ) {
+        localStorage.removeItem("user");
+        return null;
+      }
+
+      return {
+        id: normalizedUser.id,
+        name: normalizedUser.name || "",
+        email: normalizedUser.email || "",
+        role: String(normalizedUser.role).toUpperCase(),
+      };
+    } catch (error) {
+      console.error(
+        "Failed to restore authentication:",
+        error
+      );
+
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+
+      return null;
+    }
   });
 
   const login = async (email, password) => {
@@ -16,32 +59,62 @@ export function AuthProvider({ children }) {
       password,
     });
 
-    const { token, user } = response.data;
+    const { token, user: loggedInUser } =
+      response.data;
 
+    if (!token || !loggedInUser) {
+      throw new Error(
+        "Invalid login response from server."
+      );
+    }
+
+    const normalizedUser = {
+      id: loggedInUser.id,
+      name: loggedInUser.name || "",
+      email: loggedInUser.email || "",
+      role: String(
+        loggedInUser.role || ""
+      ).toUpperCase(),
+    };
+
+    // Always write token and user together.
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem(
+      "user",
+      JSON.stringify(normalizedUser)
+    );
 
-    setUser(user);
+    // Update React state only after localStorage
+    // contains the matching token + user.
+    setUser(normalizedUser);
 
-    return user;
+    return normalizedUser;
   };
 
   const logout = () => {
+    // Remove authentication data first.
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 
+    // Then clear React authentication state.
     setUser(null);
   };
 
+  const value = {
+    user,
+    login,
+    logout,
+    isAuthenticated: Boolean(user),
+    isAdmin:
+      String(user?.role || "").toUpperCase() ===
+      "ADMIN",
+    isSales:
+      String(user?.role || "").toUpperCase() ===
+      "SALES",
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        login,
-        logout,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

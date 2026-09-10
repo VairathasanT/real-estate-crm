@@ -442,51 +442,141 @@ const updateLead = async (req, res) => {
 // ============================================================
 
 const deleteLead = async (req, res) => {
+  const leadId = Number(req.params.id);
+
+  // ----------------------------------------------------------
+  // 1. Validate ID
+  // ----------------------------------------------------------
+
+  if (!Number.isInteger(leadId) || leadId <= 0) {
+    return res.status(400).json({
+      message: "Invalid lead ID.",
+    });
+  }
+
+  // ----------------------------------------------------------
+  // 2. Authorization
+  // ----------------------------------------------------------
+
+  if (req.user?.role !== "ADMIN") {
+    return res.status(403).json({
+      message: "Only admin can delete leads.",
+    });
+  }
+
   try {
-    const id = Number(req.params.id);
-
-    if (!id) {
-      return res.status(400).json({
-        message: "Invalid lead ID",
-      });
-    }
-
     // --------------------------------------------------------
-    // Only ADMIN can delete leads
+    // 3. Check lead exists
     // --------------------------------------------------------
-
-    if (req.user.role !== "ADMIN") {
-      return res.status(403).json({
-        message: "Only admin can delete leads",
-      });
-    }
 
     const lead = await prisma.lead.findUnique({
       where: {
-        id,
+        id: leadId,
+      },
+      select: {
+        id: true,
+        name: true,
       },
     });
 
     if (!lead) {
       return res.status(404).json({
-        message: "Lead not found",
+        message: "Lead not found.",
       });
     }
 
-    await prisma.lead.delete({
+    // --------------------------------------------------------
+    // 4. Check bookings connected to this lead
+    // --------------------------------------------------------
+
+    const bookings = await prisma.booking.findMany({
       where: {
-        id,
+        leadId,
+      },
+      select: {
+        id: true,
+        status: true,
       },
     });
 
-    return res.json({
-      message: "Lead deleted successfully",
+    // --------------------------------------------------------
+    // 5. Do not delete a lead with active booking
+    // --------------------------------------------------------
+
+    const hasActiveBooking = bookings.some(
+      (booking) => booking.status === "CONFIRMED"
+    );
+
+    if (hasActiveBooking) {
+      return res.status(409).json({
+        message:
+          "This lead cannot be deleted because it has an active booking. Cancel the booking first.",
+        code: "LEAD_HAS_ACTIVE_BOOKING",
+      });
+    }
+
+    // --------------------------------------------------------
+    // 6. Delete lead + cancelled booking history atomically
+    // --------------------------------------------------------
+
+    await prisma.$transaction(async (tx) => {
+      // Delete cancelled booking records associated
+      // with this lead.
+      await tx.booking.deleteMany({
+        where: {
+          leadId,
+          status: "CANCELLED",
+        },
+      });
+
+      // Delete the lead itself.
+      await tx.lead.delete({
+        where: {
+          id: leadId,
+        },
+      });
+    });
+
+    // --------------------------------------------------------
+    // 7. Success response
+    // --------------------------------------------------------
+
+    return res.status(200).json({
+      message: "Lead deleted successfully.",
+      leadId: lead.id,
+      leadName: lead.name,
     });
   } catch (error) {
-    console.error("Delete lead error:", error);
+    console.error("DELETE LEAD ERROR:", error);
+
+    // --------------------------------------------------------
+    // Prisma: Record not found
+    // --------------------------------------------------------
+
+    if (error?.code === "P2025") {
+      return res.status(404).json({
+        message: "Lead not found.",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Prisma: Foreign key constraint
+    // --------------------------------------------------------
+
+    if (error?.code === "P2003") {
+      return res.status(409).json({
+        message:
+          "This lead cannot be deleted because it is still referenced by another record.",
+        code: "LEAD_REFERENCED",
+      });
+    }
+
+    // --------------------------------------------------------
+    // Unexpected database/server error
+    // --------------------------------------------------------
 
     return res.status(500).json({
-      message: "Failed to delete lead",
+      message: "Unable to delete lead. Please try again.",
     });
   }
 };

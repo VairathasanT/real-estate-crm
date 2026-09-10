@@ -688,6 +688,25 @@ td strong { font-weight: 600; }
   background: var(--color-surface);
 }
 
+.modal > .lead-details {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.modal > .lead-details > .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: var(--space-2) calc(var(--space-6) * -1) calc(var(--space-6) * -1);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--color-border-light);
+  background: var(--color-surface);
+}
+
 .lead-form-shell .field-error {
   color: var(--color-danger-dark);
   font-size: var(--text-xs);
@@ -1162,6 +1181,47 @@ td strong { font-weight: 600; }
 .login-right-features { display: flex; flex-direction: column; gap: 16px; margin-top: 40px; text-align: left; }
 .login-right-feature { display: flex; align-items: center; gap: 12px; font-size: 14px; opacity: 0.9; }
 .login-right-feature svg { width: 20px; height: 20px; opacity: 0.7; flex-shrink: 0; }
+
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 46px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 32px;
+  height: 32px;
+
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #64748b;
+
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: #0f172a;
+}
+
+.password-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
 
 /* =================================================================
    6. DASHBOARD PAGE
@@ -2818,4 +2878,19 @@ td strong { font-weight: 600; }
     margin: 0;
     padding: 14px 20px;
   }
+}
+
+/* Delete action button */
+.delete-action {
+  color: #dc2626;
+}
+
+.delete-action:hover {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.delete-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

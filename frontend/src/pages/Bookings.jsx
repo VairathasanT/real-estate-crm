@@ -34,6 +34,8 @@ export default function Bookings() {
   const [bookingForm, setBookingForm] =
     useState(initialBookingForm);
 
+  const [openingModal, setOpeningModal] = useState(false);
+
   // =========================================================
   // LOAD BOOKINGS
   // =========================================================
@@ -151,15 +153,30 @@ export default function Bookings() {
   // OPEN MODAL
   // =========================================================
 
-  const openModal = () => {
-    setBookingForm({
-      ...initialBookingForm,
-    });
+  const openModal = async () => {
+    if (saving || openingModal) return;
 
-    setError("");
-    setSuccess("");
+    try {
+      setOpeningModal(true);
+      setError("");
+      setSuccess("");
 
-    setShowModal(true);
+      // Refresh leads and units immediately before opening the form.
+      // This prevents stale availability data when another user books
+      // or cancels a unit in another browser/session.
+      await Promise.all([loadLeads(), loadUnits()]);
+
+      setBookingForm({
+        ...initialBookingForm,
+      });
+
+      setShowModal(true);
+    } catch (err) {
+      console.error("OPEN BOOKING MODAL ERROR:", err);
+      setError(getApiErrorMessage(err, "Unable to load current booking data."));
+    } finally {
+      setOpeningModal(false);
+    }
   };
 
   // =========================================================
@@ -215,8 +232,20 @@ export default function Bookings() {
       await loadData();
     } catch (err) {
       if (err.response?.status === 409) {
-        setError("This unit is no longer available. It may have just been booked by another user.");
-        setBookingForm((current) => ({ ...current, unitId: "" }));
+        const backendMessage = err.response?.data?.message;
+
+        setError(
+          backendMessage ||
+            "The booking could not be completed because the selected lead or unit is no longer available."
+        );
+
+        setBookingForm((current) => ({
+          ...current,
+          unitId: "",
+        }));
+
+        // Refresh both bookings and units so the form immediately
+        // reflects the current database state.
         await Promise.all([loadBookings(), loadUnits()]);
       } else {
         setError(getApiErrorMessage(err, "Unable to create booking."));
@@ -351,12 +380,14 @@ export default function Bookings() {
             onClick={openModal}
             disabled={
               loading ||
+              saving ||
+              openingModal ||
               availableUnits.length === 0
             }
           >
             <Plus size={17} />
 
-            Create Booking
+            {openingModal ? "Loading..." : "Create Booking"}
           </button>
 
         </div>

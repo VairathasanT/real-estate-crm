@@ -1,3 +1,4 @@
+import{ useAuth } from "../context/AuthContext";
 import { useEffect, useState } from "react";
 import {
   RefreshCw,
@@ -5,13 +6,50 @@ import {
   ShieldCheck,
   UserRound,
   BriefcaseBusiness,
+  Eye,
+  EyeOff,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Save,
 } from "lucide-react";
 import api, { getApiErrorMessage } from "../services/api";
+import ConfirmDialog from "../components/ConfirmDialog";
+
+const initialForm = {
+  name: "",
+  email: "",
+  password: "",
+  role: "SALES",
+};
 
 export default function Employees() {
+  const { user } = useAuth();
+
+  const role = String(
+    user?.role || user?.user?.role || ""
+  ).toUpperCase();
+
+  const isAdmin = role === "ADMIN";
   const [employees, setEmployees] = useState([]);
+
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const [showModal, setShowModal] = useState(false);
+
+  const [editingEmployee, setEditingEmployee] =
+    useState(null);
+
+  const [form, setForm] = useState(initialForm);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [deleteEmployeeId, setDeleteEmployeeId] =
+    useState(null);
 
   // =========================================================
   // LOAD EMPLOYEES
@@ -22,7 +60,8 @@ export default function Employees() {
       setLoading(true);
       setError("");
 
-      const response = await api.get("/auth/employees");
+      const response =
+        await api.get("/auth/employees");
 
       const data = response.data;
 
@@ -32,15 +71,31 @@ export default function Employees() {
           : data?.employees || []
       );
     } catch (err) {
-      setError(getApiErrorMessage(err, "Unable to load employees."));
+      setError(
+        getApiErrorMessage(
+          err,
+          "Unable to load employees."
+        )
+      );
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    if (!isAdmin) {
+      setLoading(false);
+      setError("Access denied");
+      return;
+    }
+
     loadEmployees();
-  }, []);
+  }, [user, isAdmin]);
 
   // =========================================================
   // COUNTS
@@ -69,6 +124,204 @@ export default function Employees() {
   );
 
   // =========================================================
+  // FORM
+  // =========================================================
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+
+    setError("");
+    setSuccess("");
+  };
+
+  // =========================================================
+  // OPEN CREATE
+  // =========================================================
+
+  const openCreateModal = () => {
+    setEditingEmployee(null);
+    setForm({
+      ...initialForm,
+    });
+    setShowPassword(false);
+
+    setError("");
+    setSuccess("");
+    setShowModal(true);
+  };
+
+  // =========================================================
+  // OPEN EDIT
+  // =========================================================
+
+  const openEditModal = (employee) => {
+    setEditingEmployee(employee);
+
+    setForm({
+      name: employee.name || "",
+      email: employee.email || "",
+      password: "",
+      role: employee.role || "SALES",
+    });
+    setShowPassword(false);
+
+    setError("");
+    setSuccess("");
+    setShowModal(true);
+  };
+
+  // =========================================================
+  // CLOSE MODAL
+  // =========================================================
+
+  const closeModal = () => {
+    if (saving) return;
+
+    setShowModal(false);
+    setEditingEmployee(null);
+    setForm({
+      ...initialForm,
+    });
+    setShowPassword(false);
+
+    setError("");
+  };
+
+  // =========================================================
+  // SAVE EMPLOYEE
+  // =========================================================
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!form.name.trim()) {
+      setError("Employee name is required.");
+      return;
+    }
+
+    if (!form.email.trim()) {
+      setError("Employee email is required.");
+      return;
+    }
+
+    if (
+      !editingEmployee &&
+      !form.password
+    ) {
+      setError("Password is required.");
+      return;
+    }
+
+    if (
+      form.password &&
+      form.password.length < 8
+    ) {
+      setError(
+        "Password must be at least 8 characters."
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role,
+      };
+
+      // Only send password when creating or
+      // when an admin intentionally changes it.
+      if (form.password) {
+        payload.password = form.password;
+      }
+
+      if (editingEmployee) {
+        await api.put(
+          `/auth/employees/${editingEmployee.id}`,
+          payload
+        );
+
+        setSuccess(
+          "Employee updated successfully."
+        );
+      } else {
+        await api.post(
+          "/auth/employees",
+          payload
+        );
+
+        setSuccess(
+          "Employee created successfully."
+        );
+      }
+
+      setShowModal(false);
+      setEditingEmployee(null);
+      setForm({
+        ...initialForm,
+      });
+      setShowPassword(false);
+
+      await loadEmployees();
+    } catch (err) {
+      setError(
+        getApiErrorMessage(
+          err,
+          editingEmployee
+            ? "Unable to update employee."
+            : "Unable to create employee."
+        )
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // =========================================================
+  // DELETE
+  // =========================================================
+
+  const handleDelete = async () => {
+    if (!deleteEmployeeId) return;
+
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
+      await api.delete(
+        `/auth/employees/${deleteEmployeeId}`
+      );
+
+      setSuccess(
+        "Employee deleted successfully."
+      );
+
+      setDeleteEmployeeId(null);
+
+      await loadEmployees();
+    } catch (err) {
+      setError(
+        getApiErrorMessage(
+          err,
+          "Unable to delete employee."
+        )
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // =========================================================
   // FORMAT DATE
   // =========================================================
 
@@ -90,9 +343,13 @@ export default function Employees() {
   // =========================================================
 
   const roleLabel = (role) => {
-    if (role === "ADMIN") return "Administrator";
+    if (role === "ADMIN") {
+      return "Administrator";
+    }
 
-    if (role === "SALES") return "Sales Employee";
+    if (role === "SALES") {
+      return "Sales Employee";
+    }
 
     return role || "-";
   };
@@ -111,6 +368,16 @@ export default function Employees() {
   // PAGE
   // =========================================================
 
+  if (user && !isAdmin) {
+    return (
+      <div className="page-container">
+        <div className="error-message">
+          Access denied
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
 
@@ -124,32 +391,53 @@ export default function Employees() {
           <h1>Employees</h1>
 
           <p>
-            View sales team members and performance
+            Manage CRM users, roles and sales team
+            activity
           </p>
         </div>
 
-        <button
-          type="button"
-          className="refresh-button"
-          onClick={loadEmployees}
-          disabled={loading}
-        >
-          <RefreshCw size={17} />
+        <div className="page-header-actions">
 
-          {loading
-            ? "Loading..."
-            : "Refresh"}
-        </button>
+          <button
+            type="button"
+            className="refresh-button"
+            onClick={loadEmployees}
+            disabled={loading || saving}
+          >
+            <RefreshCw size={17} />
+
+            {loading
+              ? "Loading..."
+              : "Refresh"}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={openCreateModal}
+            disabled={saving}
+          >
+            <Plus size={17} />
+            Add Employee
+          </button>
+
+        </div>
 
       </div>
 
       {/* =====================================================
-          ERROR
+          ALERTS
       ====================================================== */}
 
       {error && (
         <div className="error-message">
           {error}
+        </div>
+      )}
+
+      {success && (
+        <div className="success-message">
+          {success}
         </div>
       )}
 
@@ -160,73 +448,53 @@ export default function Employees() {
       <div className="stats-grid">
 
         <div className="stat-card">
-
           <div className="stat-icon">
             <Users size={22} />
           </div>
 
           <div>
             <span>Total Employees</span>
-
-            <strong>
-              {employees.length}
-            </strong>
+            <strong>{employees.length}</strong>
           </div>
-
         </div>
 
         <div className="stat-card">
-
           <div className="stat-icon">
             <ShieldCheck size={22} />
           </div>
 
           <div>
             <span>Administrators</span>
-
-            <strong>
-              {adminCount}
-            </strong>
+            <strong>{adminCount}</strong>
           </div>
-
         </div>
 
         <div className="stat-card">
-
           <div className="stat-icon">
             <UserRound size={22} />
           </div>
 
           <div>
             <span>Sales Employees</span>
-
-            <strong>
-              {salesCount}
-            </strong>
+            <strong>{salesCount}</strong>
           </div>
-
         </div>
 
         <div className="stat-card">
-
           <div className="stat-icon">
             <BriefcaseBusiness size={22} />
           </div>
 
           <div>
             <span>Assigned Leads</span>
-
-            <strong>
-              {totalLeads}
-            </strong>
+            <strong>{totalLeads}</strong>
           </div>
-
         </div>
 
       </div>
 
       {/* =====================================================
-          EMPLOYEES
+          TEAM HEADER
       ====================================================== */}
 
       <div className="section-header">
@@ -241,15 +509,17 @@ export default function Employees() {
 
       </div>
 
+      {/* =====================================================
+          TABLE
+      ====================================================== */}
+
       {loading ? (
 
         <div className="dashboard-card empty-state">
 
           <RefreshCw size={36} />
 
-          <h3>
-            Loading employees...
-          </h3>
+          <h3>Loading employees...</h3>
 
           <p>
             Please wait while we load the team.
@@ -263,14 +533,21 @@ export default function Employees() {
 
           <Users size={36} />
 
-          <h3>
-            No employees found
-          </h3>
+          <h3>No employees found</h3>
 
           <p>
             There are currently no employees
             registered in the CRM.
           </p>
+
+          <button
+            type="button"
+            className="primary-button"
+            onClick={openCreateModal}
+          >
+            <Plus size={17} />
+            Add Employee
+          </button>
 
         </div>
 
@@ -283,7 +560,6 @@ export default function Employees() {
             <table>
 
               <thead>
-
                 <tr>
                   <th>Employee</th>
                   <th>Email</th>
@@ -291,17 +567,16 @@ export default function Employees() {
                   <th>Assigned Leads</th>
                   <th>Bookings</th>
                   <th>Joined</th>
+                  <th>Actions</th>
                 </tr>
-
               </thead>
 
               <tbody>
 
                 {employees.map(
                   (employee) => (
-                    <tr
-                      key={employee.id}
-                    >
+
+                    <tr key={employee.id}>
 
                       <td>
 
@@ -315,14 +590,15 @@ export default function Employees() {
                           </div>
 
                           <div className="employee-name-details">
+
                             <strong>
                               {employee.name}
                             </strong>
 
                             <small>
-                              Employee #
-                              {employee.id}
+                              Employee #{employee.id}
                             </small>
+
                           </div>
 
                         </div>
@@ -340,6 +616,7 @@ export default function Employees() {
                             employee.role
                           )}
                         >
+
                           {employee.role ===
                             "ADMIN" && (
                             <ShieldCheck
@@ -357,6 +634,7 @@ export default function Employees() {
                           {roleLabel(
                             employee.role
                           )}
+
                         </span>
 
                       </td>
@@ -383,7 +661,46 @@ export default function Employees() {
                         )}
                       </td>
 
+                      <td>
+
+                        <div className="table-actions">
+
+                          <button
+                            type="button"
+                            className="table-action"
+                            onClick={() =>
+                              openEditModal(
+                                employee
+                              )
+                            }
+                            disabled={saving}
+                            title="Edit employee"
+                          >
+                            <Pencil size={15} />
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            className="table-action danger"
+                            onClick={() =>
+                              setDeleteEmployeeId(
+                                employee.id
+                              )
+                            }
+                            disabled={saving}
+                            title="Delete employee"
+                          >
+                            <Trash2 size={15} />
+                            Delete
+                          </button>
+
+                        </div>
+
+                      </td>
+
                     </tr>
+
                   )
                 )}
 
@@ -394,17 +711,20 @@ export default function Employees() {
           </div>
 
         </div>
+
       )}
 
       {/* =====================================================
-          PERFORMANCE SUMMARY
+          TEAM OVERVIEW
       ====================================================== */}
 
       {!loading &&
         employees.length > 0 && (
+
           <div className="employee-performance">
 
             <div className="section-header">
+
               <div>
                 <h2>Team Overview</h2>
 
@@ -413,6 +733,7 @@ export default function Employees() {
                   employees
                 </p>
               </div>
+
             </div>
 
             <div className="employee-performance-grid">
@@ -453,9 +774,7 @@ export default function Employees() {
                     <div className="employee-performance-stats">
 
                       <div>
-                        <span>
-                          Leads
-                        </span>
+                        <span>Leads</span>
 
                         <strong>
                           {employee._count
@@ -465,9 +784,7 @@ export default function Employees() {
                       </div>
 
                       <div>
-                        <span>
-                          Bookings
-                        </span>
+                        <span>Bookings</span>
 
                         <strong>
                           {employee._count
@@ -509,7 +826,255 @@ export default function Employees() {
             </div>
 
           </div>
+
         )}
+
+      {/* =====================================================
+          EMPLOYEE MODAL
+      ====================================================== */}
+
+      {showModal && (
+
+        <div
+          className="modal-overlay"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+                event.currentTarget &&
+              !saving
+            ) {
+              closeModal();
+            }
+          }}
+        >
+
+          <div className="modal">
+
+            <div className="modal-header">
+
+              <div>
+
+                <h2>
+                  {editingEmployee
+                    ? "Edit Employee"
+                    : "Add Employee"}
+                </h2>
+
+                <p>
+                  {editingEmployee
+                    ? "Update employee details, role or password."
+                    : "Create a new CRM user account."}
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeModal}
+                disabled={saving}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            {error && (
+              <div className="error-message modal-error">
+                {error}
+              </div>
+            )}
+
+            <form
+              className="lead-form"
+              onSubmit={handleSubmit}
+            >
+
+              {/* NAME */}
+
+              <div className="form-group">
+
+                <label htmlFor="employee-name">
+                  Full Name *
+                </label>
+
+                <input
+                  id="employee-name"
+                  name="name"
+                  type="text"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Enter employee name"
+                  autoComplete="name"
+                  required
+                />
+
+              </div>
+
+              {/* EMAIL */}
+
+              <div className="form-group">
+
+                <label htmlFor="employee-email">
+                  Email *
+                </label>
+
+                <input
+                  id="employee-email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="employee@estateflow.com"
+                  autoComplete="email"
+                  required
+                />
+
+              </div>
+
+              {/* ROLE */}
+
+              <div className="form-group">
+
+                <label htmlFor="employee-role">
+                  Role *
+                </label>
+
+                <select
+                  id="employee-role"
+                  name="role"
+                  value={form.role}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="SALES">
+                    Sales Employee
+                  </option>
+
+                  <option value="ADMIN">
+                    Administrator
+                  </option>
+                </select>
+
+              </div>
+
+              {/* PASSWORD */}
+
+              <div className="form-group">
+
+                <label htmlFor="employee-password">
+                  Password{" "}
+                  {editingEmployee
+                    ? "(leave blank to keep current)"
+                    : "*"}
+                </label>
+
+                <div className="password-input-wrapper">
+                  <input
+                    id="employee-password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={form.password}
+                    onChange={handleChange}
+                    placeholder={
+                      editingEmployee
+                        ? "Enter new password only if changing it"
+                        : "Minimum 8 characters"
+                    }
+                    autoComplete="new-password"
+                    required={!editingEmployee}
+                    minLength={8}
+                  />
+
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() =>
+                      setShowPassword((current) => !current)
+                    }
+                    aria-label={
+                      showPassword
+                        ? "Hide password"
+                        : "Show password"
+                    }
+                    title={
+                      showPassword
+                        ? "Hide password"
+                        : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
+
+              </div>
+
+              {/* ACTIONS */}
+
+              <div className="modal-actions">
+
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={closeModal}
+                  disabled={saving}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="primary-button"
+                  disabled={saving}
+                >
+                  {saving ? (
+                    "Saving..."
+                  ) : (
+                    <>
+                      <Save size={17} />
+                      {editingEmployee
+                        ? "Save Changes"
+                        : "Create Employee"}
+                    </>
+                  )}
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* =====================================================
+          DELETE CONFIRMATION
+      ====================================================== */}
+
+      <ConfirmDialog
+        isOpen={
+          deleteEmployeeId !== null
+        }
+        title="Delete this employee?"
+        message="This action cannot be undone. Employees with assigned CRM records cannot be deleted."
+        confirmLabel="Delete Employee"
+        cancelLabel="Keep Employee"
+        isDestructive
+        isPending={saving}
+        onCancel={() => {
+          if (!saving) {
+            setDeleteEmployeeId(null);
+          }
+        }}
+        onConfirm={handleDelete}
+      />
 
     </div>
   );
