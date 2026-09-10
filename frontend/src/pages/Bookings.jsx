@@ -379,15 +379,12 @@ export default function Bookings() {
             className="btn btn-primary"
             onClick={openModal}
             disabled={
-              loading ||
-              saving ||
-              openingModal ||
-              availableUnits.length === 0
+              loading 
             }
           >
             <Plus size={17} />
 
-            {openingModal ? "Loading..." : "Create Booking"}
+            Create Booking
           </button>
 
         </div>
@@ -506,7 +503,10 @@ export default function Bookings() {
             Create your first booking using the
             button above.
           </p>
-          <button type="button" className="primary-button" onClick={openModal} disabled={availableUnits.length === 0}>
+          <button type="button" 
+          className="primary-button" 
+          onClick={openModal} 
+          >
             <Plus size={17} />
             Create Booking
           </button>

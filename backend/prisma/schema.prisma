@@ -6,6 +6,83 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id            Int       @id @default(autoincrement())
+  name          String
+  email         String    @unique
+  password      String
+  role          Role      @default(SALES)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  bookings      Booking[]
+  assignedLeads Lead[]
+}
+
+model Lead {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String?
+  phone        String?
+  stage        LeadStage @default(NEW)
+  notes        String?
+  followUpDate DateTime?
+  assignedToId Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bookings     Booking[]
+  assignedTo   User?     @relation(fields: [assignedToId], references: [id])
+}
+
+model Project {
+  id          Int        @id @default(autoincrement())
+  name        String
+  location    String
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  buildings   Building[]
+}
+
+model Building {
+  id        Int      @id @default(autoincrement())
+  name      String
+  projectId Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  units     Unit[]
+
+  @@unique([projectId, name])
+}
+
+model Unit {
+  id         Int        @id @default(autoincrement())
+  unitNumber String
+  type       String
+  price      Decimal    @db.Decimal(12, 2)
+  status     UnitStatus @default(AVAILABLE)
+  buildingId Int
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  bookings   Booking[]
+  building   Building   @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@unique([buildingId, unitNumber])
+}
+
+model Booking {
+  id         Int           @id @default(autoincrement())
+  status     BookingStatus @default(CONFIRMED)
+  bookedAt   DateTime      @default(now())
+  leadId     Int
+  unitId     Int
+  bookedById Int
+  createdAt  DateTime      @default(now())
+  bookedBy   User          @relation(fields: [bookedById], references: [id])
+  lead       Lead          @relation(fields: [leadId], references: [id])
+  unit       Unit          @relation(fields: [unitId], references: [id])
+}
+
 enum Role {
   ADMIN
   SALES
@@ -30,97 +107,4 @@ enum UnitStatus {
 enum BookingStatus {
   CONFIRMED
   CANCELLED
-}
-
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(SALES)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  assignedLeads Lead[]
-  bookings      Booking[]
-}
-
-model Lead {
-  id           Int       @id @default(autoincrement())
-  name         String
-  email        String?
-  phone        String?
-  stage        LeadStage @default(NEW)
-  notes        String?
-  followUpDate DateTime?
-
-  assignedToId Int?
-  assignedTo   User? @relation(fields: [assignedToId], references: [id])
-
-  bookings Booking[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Project {
-  id          Int      @id @default(autoincrement())
-  name        String
-  location    String
-  description String?
-
-  buildings Building[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Building {
-  id        Int    @id @default(autoincrement())
-  name      String
-  projectId Int
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  units   Unit[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([projectId, name])
-}
-
-model Unit {
-  id         Int        @id @default(autoincrement())
-  unitNumber String
-  type       String
-  price      Decimal    @db.Decimal(12, 2)
-  status     UnitStatus @default(AVAILABLE)
-
-  buildingId Int
-  building   Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
-
-  bookings Booking[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([buildingId, unitNumber])
-}
-
-model Booking {
-  id        Int           @id @default(autoincrement())
-  status    BookingStatus @default(CONFIRMED)
-  bookedAt  DateTime      @default(now())
-
-  leadId Int
-  lead   Lead @relation(fields: [leadId], references: [id])
-
-  unitId Int
-  unit   Unit @relation(fields: [unitId], references: [id])
-
-  bookedById Int
-  bookedBy   User @relation(fields: [bookedById], references: [id])
-
-  createdAt DateTime @default(now())
-
 }
